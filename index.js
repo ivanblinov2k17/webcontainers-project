@@ -1,24 +1,27 @@
 import './style.css'
 import { WebContainer } from '@webcontainer/api';
+
+
+// snapshot is a `Buffer`
 import { files } from './files';
 
-/** @type {import('@webcontainer/api').WebContainer}  */
+const snapshotResponse = await fetch('http://localhost:3111/snapshot');
+const snapshot = await snapshotResponse.arrayBuffer();
+console.log('sas', snapshot);
+const iframeEl = document.querySelector('iframe');
+
 let webcontainerInstance;
 
-window.addEventListener('load', async () => {
-  textareaEl.value = files['index.js'].file.contents;
-  textareaEl.addEventListener('input', (e) => {
-    writeIndexJS(e.currentTarget.value);
-  });
-
-  secondTextArea.value = files['second-module.js'].file.contents;
-  secondTextArea.addEventListener('input', (e) => {
-    writeSecondModule(e.currentTarget.value);
-  });
+async function startApp () {
+  console.log('sas')
+  
 
   // Call only once
   webcontainerInstance = await WebContainer.boot();
-  await webcontainerInstance.mount(files);
+  await webcontainerInstance.mount(snapshot);
+  console.log('mounted');
+//   await webcontainerInstance.mount(files);
+
 
   const exitCode = await installDependencies();
   if (exitCode !== 0) {
@@ -26,7 +29,20 @@ window.addEventListener('load', async () => {
   };
 
   startDevServer();
-});
+
+  firstEditor.value = await webcontainerInstance.fs.readFile('/src/App.tsx', 'utf-8');
+  firstEditor.addEventListener('input', (e) => {
+    writeAppTsx(e.currentTarget.value);
+  });
+
+  secondEditor.value = await webcontainerInstance.fs.readFile('/src/text.ts', 'utf-8');
+  secondEditor.addEventListener('input', (e) => {
+    writeTextTs(e.currentTarget.value);
+  });
+}
+
+// window.addEventListener('load', startApp);
+startApp()
 
 async function installDependencies() {
   // Install dependencies
@@ -42,7 +58,8 @@ async function installDependencies() {
 
 async function startDevServer() {
   // Run `npm run start` to start the Express app
-  await webcontainerInstance.spawn('npm', ['run', 'start']);
+  console.log('starting dev server')
+  await webcontainerInstance.spawn('npm', ['run', 'dev']);
 
   // Wait for `server-ready` event
   webcontainerInstance.on('server-ready', (port, url) => {
@@ -54,30 +71,13 @@ async function startDevServer() {
  * @param {string} content
  */
 
-async function writeIndexJS(content) {
-  await webcontainerInstance.fs.writeFile('/index.js', content);
+async function writeAppTsx(content) {
+  await webcontainerInstance.fs.writeFile('/src/App.tsx', content);
 }
 
-async function writeSecondModule(content) {
-  await webcontainerInstance.fs.writeFile('/second-module.js', content);
+async function writeTextTs(content) {
+  await webcontainerInstance.fs.writeFile('/src/text.ts', content);
 }
 
-document.querySelector('#app').innerHTML = `
-  <div class="container">
-    <div class="editor">
-      <textarea class="first">I am a textarea</textarea>
-      <textarea class="second">I am a second</textarea>
-
-    </div>
-    <div class="preview">
-      <iframe src="loading.html"></iframe>
-    </div>
-  </div>
-`
-
-/** @type {HTMLIFrameElement | null} */
-const iframeEl = document.querySelector('iframe');
-
-/** @type {HTMLTextAreaElement | null} */
-const textareaEl = document.querySelector('.first');
-const secondTextArea = document.querySelector('.second');
+const firstEditor = document.querySelector('.first');
+const secondEditor = document.querySelector('.second');

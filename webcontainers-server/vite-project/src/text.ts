@@ -1,0 +1,1 @@
+export const text = 'I am string passed from other module. Try to edit me'
